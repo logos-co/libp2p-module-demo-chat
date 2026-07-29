@@ -2,7 +2,7 @@
   description = "Demo Chat standalone app for logos-libp2p-module";
 
   inputs = {
-    logos-libp2p-module.url = "path:../logos-libp2p-module";
+    logos-libp2p-module.url = "github:logos-co/logos-libp2p-module";
   };
 
   outputs = { self, logos-libp2p-module }:

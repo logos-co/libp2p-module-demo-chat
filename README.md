@@ -1,7 +1,7 @@
-# libp2p-module-demo-chat
+# Demo Chat via logos-libp2p-module
 
-`libp2p-module-demo-chat` is a standalone terminal project that demonstrates
-`logos-libp2p-module` with one global GossipSub room titled **Demo Chat**.
+This repository is a standalone terminal project that demonstrates
+`logos-libp2p-module` with one global GossipSub room named **Demo Chat**.
 
 Each node has a local `--id`. The first time an id is used, Demo Chat generates a
 libp2p private key and stores it in `.demo-chat/state/<id>/identity.json`. Later
@@ -9,36 +9,32 @@ runs with the same id reuse the same peer identity.
 
 ## Build
 
-Run from the workspace root
+Run from the workspace root:
 
 ```bash
-cd libp2p-module-demo-chat
 nix --extra-experimental-features 'nix-command flakes' develop ../logos-libp2p-module --command bash -lc 'cmake -B build -S . && cmake --build build -j'
 ```
 
 ## Run Demo Chat
 
-Open three terminals.
+Build the project (see the Build section). Open three terminals and run the following commands in each.
 
 Terminal 1 starts the bootstrap/rendezvous node. Keep it running:
 
 ```bash
-cd libp2p-module-demo-chat
-nix --extra-experimental-features 'nix-command flakes' develop ../logos-libp2p-module --command bash -lc './build/demo-chat --id bootstrap --bootstrap --listen /ip4/127.0.0.1/tcp/9900'
+./build/demo-chat --id bootstrap --bootstrap --listen /ip4/127.0.0.1/tcp/9900
 ```
 
 Terminal 2 starts the first chat node:
 
 ```bash
-cd libp2p-module-demo-chat
-nix --extra-experimental-features 'nix-command flakes' develop ../logos-libp2p-module --command bash -lc './build/demo-chat --id alice --bootstrap-peer "$(cat .demo-chat/state/bootstrap/bootstrap-peer.txt)"'
+./build/demo-chat --id alice --bootstrap-peer "$(cat .demo-chat/state/bootstrap/bootstrap-peer.txt)"
 ```
 
 Terminal 3 starts the second chat node:
 
 ```bash
-cd libp2p-module-demo-chat
-nix --extra-experimental-features 'nix-command flakes' develop ../logos-libp2p-module --command bash -lc './build/demo-chat --id bob --bootstrap-peer "$(cat .demo-chat/state/bootstrap/bootstrap-peer.txt)"'
+./build/demo-chat --id bob --bootstrap-peer "$(cat .demo-chat/state/bootstrap/bootstrap-peer.txt)"
 ```
 
 Type a message in any Demo Chat terminal and press Enter. Peers connected to the
@@ -73,7 +69,7 @@ Every started node writes its current connection string to:
 ```
 
 The bootstrap commands above use this file so chat nodes can connect without
-manually copying the bootstrap peer id.
+manually copying the bootstrap peer ID.
 
 ## Wire Format
 
@@ -92,7 +88,7 @@ Demo Chat messages are published on the configured GossipSub topic as JSON:
 ```
 
 Service discovery uses the topic string as the service id. The advertised
-service data is compact because `logos-libp2p-module` currently limits service
+service data is intentionally compact because `logos-libp2p-module` currently limits service
 data to 33 bytes:
 
 ```json

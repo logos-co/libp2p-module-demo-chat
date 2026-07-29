@@ -87,3 +87,4 @@ set_target_properties(demo-chat PROPERTIES
 )
 
 install(TARGETS demo-chat RUNTIME DESTINATION bin)
+install(FILES "${LIBP2P_LIBRARY}" DESTINATION lib)
