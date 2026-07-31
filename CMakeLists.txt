@@ -20,6 +20,7 @@ find_package(nlohmann_json REQUIRED)
 find_path(LIBP2P_INCLUDE_DIR
     NAMES libp2p.h
     PATHS
+        ENV LOGOS_EXT_ROOT_LIBP2P
         ENV LIBP2P_INCLUDE_DIR
         ENV C_INCLUDE_PATH
         ENV CPLUS_INCLUDE_PATH
@@ -31,9 +32,11 @@ if(NOT LIBP2P_INCLUDE_DIR)
 endif()
 
 find_library(LIBP2P_LIBRARY
-    NAMES p2p
+    NAMES libp2p p2p
     PATHS
+        ENV LOGOS_EXT_ROOT_LIBP2P
         ENV LIBP2P_LIBRARY_DIR
+        ENV CMAKE_LIBRARY_PATH
         ENV LIBRARY_PATH
         ENV LD_LIBRARY_PATH
     PATH_SUFFIXES lib
@@ -42,6 +45,18 @@ if(NOT LIBP2P_LIBRARY)
     message(FATAL_ERROR "libp2p shared library not found. Build inside the logos-libp2p-module Nix development shell.")
 endif()
 get_filename_component(LIBP2P_LIBRARY_DIR "${LIBP2P_LIBRARY}" DIRECTORY)
+
+find_library(TINYCBOR_LIBRARY
+    NAMES tinycbor
+    PATHS
+        ENV CMAKE_LIBRARY_PATH
+        ENV LIBRARY_PATH
+        ENV LD_LIBRARY_PATH
+    PATH_SUFFIXES lib
+)
+if(NOT TINYCBOR_LIBRARY)
+    message(FATAL_ERROR "TinyCBOR shared library not found. Build inside the logos-libp2p-module Nix development shell.")
+endif()
 
 find_path(LOGOS_CPP_SDK_INCLUDE_DIR
     NAMES logos_json.h logos_result.h
@@ -75,6 +90,7 @@ target_include_directories(logos_libp2p_module_wrapper PUBLIC
 
 target_link_libraries(logos_libp2p_module_wrapper PUBLIC
     "${LIBP2P_LIBRARY}"
+    "${TINYCBOR_LIBRARY}"
     nlohmann_json::nlohmann_json
 )
 
