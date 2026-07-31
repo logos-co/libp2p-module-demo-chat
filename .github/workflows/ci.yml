@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NIX_CONFIG: |
+    experimental-features = nix-command flakes
+
+jobs:
+  build:
+    name: Build demo-chat
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout demo-chat
+        uses: actions/checkout@v4
+        with:
+          path: libp2p-module-demo-chat
+          persist-credentials: false
+
+      - name: Checkout logos-libp2p-module
+        uses: actions/checkout@v4
+        with:
+          repository: logos-co/logos-libp2p-module
+          path: logos-libp2p-module
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v12
+
+      - name: Setup Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@v5
+        with:
+          use-flakehub: false
+
+      - name: Configure and build
+        working-directory: libp2p-module-demo-chat
+        run: |
+          nix develop ../logos-libp2p-module --command bash -lc 'cmake -B build -S . && cmake --build build -j'
+
+      - name: Smoke test chat delivery
+        working-directory: libp2p-module-demo-chat
+        run: |
+          nix develop ../logos-libp2p-module --command ./scripts/smoke-chat.sh
