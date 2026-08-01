@@ -5,14 +5,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(DEFINED ENV{LOGOS_LIBP2P_MODULE_DIR})
+    set(LOGOS_LIBP2P_MODULE_DIR "$ENV{LOGOS_LIBP2P_MODULE_DIR}" CACHE PATH "logos-libp2p-module source directory" FORCE)
+endif()
+
 if(NOT DEFINED LOGOS_LIBP2P_MODULE_DIR)
-    set(LOGOS_LIBP2P_MODULE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../logos-libp2p-module")
+    message(FATAL_ERROR "LOGOS_LIBP2P_MODULE_DIR is not set. Run this build inside `nix develop .` so the GitHub flake input is used.")
 endif()
 
 get_filename_component(LOGOS_LIBP2P_MODULE_DIR "${LOGOS_LIBP2P_MODULE_DIR}" ABSOLUTE)
 
 if(NOT EXISTS "${LOGOS_LIBP2P_MODULE_DIR}/src/plugin.h")
-    message(FATAL_ERROR "logos-libp2p-module not found at ${LOGOS_LIBP2P_MODULE_DIR}. Set -DLOGOS_LIBP2P_MODULE_DIR=/path/to/logos-libp2p-module.")
+    message(FATAL_ERROR "logos-libp2p-module not found at ${LOGOS_LIBP2P_MODULE_DIR}. Run this build inside `nix develop .` so the GitHub flake input is used.")
 endif()
 
 find_package(nlohmann_json REQUIRED)

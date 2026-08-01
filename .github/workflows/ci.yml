@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NIX_CONFIG: |
+    experimental-features = nix-command flakes
+
+jobs:
+  build:
+    name: Build demo-chat
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v12
+
+      - name: Setup Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@v5
+        with:
+          use-flakehub: false
+
+      - name: Configure and build
+        run: |
+          nix develop . --command bash -lc 'cmake -B build -S . && cmake --build build -j'
+
+      - name: Smoke test chat delivery
+        run: |
+          nix develop . --command ./scripts/smoke-chat.sh
