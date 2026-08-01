@@ -13,18 +13,21 @@ if [[ ! -x "${DEMO_CHAT_BIN}" ]]; then
 fi
 
 WORK_DIR="$(mktemp -d)"
-BOOTSTRAP_LOG="${WORK_DIR}/bootstrap.log"
 ALICE_LOG="${WORK_DIR}/alice.log"
 BOB_LOG="${WORK_DIR}/bob.log"
-BOOTSTRAP_STDIN="${WORK_DIR}/bootstrap.stdin"
 ALICE_STDIN="${WORK_DIR}/alice.stdin"
 BOB_STDIN="${WORK_DIR}/bob.stdin"
 
 pids=()
-fds=()
+writer_pids=()
 
 cleanup() {
   local status=$?
+  for pid in "${writer_pids[@]:-}"; do
+    if kill -0 "${pid}" 2>/dev/null; then
+      kill "${pid}" 2>/dev/null || true
+    fi
+  done
   for pid in "${pids[@]:-}"; do
     if kill -0 "${pid}" 2>/dev/null; then
       kill "${pid}" 2>/dev/null || true
@@ -33,16 +36,16 @@ cleanup() {
   for pid in "${pids[@]:-}"; do
     wait "${pid}" 2>/dev/null || true
   done
-  for fd in "${fds[@]:-}"; do
-    eval "exec ${fd}>&-" 2>/dev/null || true
+  for pid in "${writer_pids[@]:-}"; do
+    wait "${pid}" 2>/dev/null || true
   done
 
   if [[ ${status} -ne 0 ]]; then
     echo "smoke test failed; logs are in ${WORK_DIR}" >&2
-    for log in "${BOOTSTRAP_LOG}" "${ALICE_LOG}" "${BOB_LOG}"; do
+    for log in "${ALICE_LOG}" "${BOB_LOG}"; do
       if [[ -f "${log}" ]]; then
         echo "===== ${log} =====" >&2
-        tail -n 80 "${log}" >&2 || true
+        tail -n 120 "${log}" >&2 || true
       fi
     done
   else
@@ -93,46 +96,50 @@ wait_for_log() {
   return 1
 }
 
-mkfifo "${BOOTSTRAP_STDIN}" "${ALICE_STDIN}" "${BOB_STDIN}"
-exec {BOOTSTRAP_FD}<>"${BOOTSTRAP_STDIN}"
-exec {ALICE_FD}<>"${ALICE_STDIN}"
-exec {BOB_FD}<>"${BOB_STDIN}"
-fds+=("${BOOTSTRAP_FD}" "${ALICE_FD}" "${BOB_FD}")
+run_with_fifo_stdin() {
+  local log="$1"
+  local fifo="$2"
+  shift 2
+  (
+    cd "${WORK_DIR}"
+    DEMO_CHAT_DISABLE_DISCOVERY_LOOKUP=1 stdbuf -oL -eL "$@" <"${fifo}"
+  ) >"${log}" 2>&1 &
+  pids+=("$!")
+}
 
-(
-  cd "${WORK_DIR}"
-  "${DEMO_CHAT_BIN}" --id bootstrap --bootstrap --listen "${BOOTSTRAP_ADDR}" <"${BOOTSTRAP_STDIN}"
-) >"${BOOTSTRAP_LOG}" 2>&1 &
-pids+=("$!")
+mkfifo "${ALICE_STDIN}" "${BOB_STDIN}"
 
-BOOTSTRAP_PEER_FILE="${WORK_DIR}/.demo-chat/state/bootstrap/bootstrap-peer.txt"
-wait_for_file "${BOOTSTRAP_PEER_FILE}"
-BOOTSTRAP_PEER="$(cat "${BOOTSTRAP_PEER_FILE}")"
-BOOTSTRAP_PEER_ID="${BOOTSTRAP_PEER%%@*}"
+tail -f /dev/null >"${ALICE_STDIN}" &
+writer_pids+=("$!")
+tail -f /dev/null >"${BOB_STDIN}" &
+writer_pids+=("$!")
 
-(
-  cd "${WORK_DIR}"
-  "${DEMO_CHAT_BIN}" --id bob --nick Bob --bootstrap-peer "${BOOTSTRAP_PEER}" <"${BOB_STDIN}"
-) >"${BOB_LOG}" 2>&1 &
-pids+=("$!")
+run_with_fifo_stdin \
+  "${ALICE_LOG}" \
+  "${ALICE_STDIN}" \
+  "${DEMO_CHAT_BIN}" --id alice --nick Alice --bootstrap --listen "${BOOTSTRAP_ADDR}"
 
-(
-  cd "${WORK_DIR}"
-  "${DEMO_CHAT_BIN}" --id alice --nick Alice --bootstrap-peer "${BOOTSTRAP_PEER}" <"${ALICE_STDIN}"
-) >"${ALICE_LOG}" 2>&1 &
-pids+=("$!")
+ALICE_PEER_FILE="${WORK_DIR}/.demo-chat/state/alice/bootstrap-peer.txt"
+wait_for_file "${ALICE_PEER_FILE}"
+wait_for_log "${ALICE_LOG}" "Demo Chat: ready"
+ALICE_PEER="$(cat "${ALICE_PEER_FILE}")"
+ALICE_PEER_ID="${ALICE_PEER%%@*}"
+exec 3>"${ALICE_STDIN}"
+
+run_with_fifo_stdin \
+  "${BOB_LOG}" \
+  "${BOB_STDIN}" \
+  "${DEMO_CHAT_BIN}" --id bob --nick Bob --bootstrap-peer "${ALICE_PEER}"
 
 wait_for_log "${BOB_LOG}" "Demo Chat: ready"
-wait_for_log "${ALICE_LOG}" "Demo Chat: ready"
-wait_for_log "${BOB_LOG}" "Demo Chat: connected to ${BOOTSTRAP_PEER_ID}"
-wait_for_log "${ALICE_LOG}" "Demo Chat: connected to ${BOOTSTRAP_PEER_ID}"
+wait_for_log "${BOB_LOG}" "Demo Chat: connected to ${ALICE_PEER_ID}"
 
 # Give GossipSub and service discovery a short window to connect peers before
 # publishing. Send a few times to avoid a transient mesh-formation race.
 sleep 2
 for _ in 1 2 3; do
   assert_processes_alive
-  printf '%s\n' "${MESSAGE}" >&"${ALICE_FD}"
+  printf '%s\n' "${MESSAGE}" >&3
   sleep 1
   if grep -Fq "${MESSAGE}" "${BOB_LOG}"; then
     echo "smoke test passed: Bob received '${MESSAGE}'"

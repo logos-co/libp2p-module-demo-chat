@@ -406,22 +406,26 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::thread discoveryThread([&] {
-        while (!gStop.load(std::memory_order_acquire)) {
-            auto lookup = node.discoLookup(serviceId, serviceData);
-            if (lookup.success && lookup.value.is_array()) {
-                for (const auto& rec : lookup.value) {
-                    std::string peerId = rec.value("peerId", "");
-                    auto addrs = jsonStringArray(rec["addrs"]);
-                    connectPeerOnce(node, peerId, addrs, connectedPeers, outputMutex);
+    const bool disableDiscoveryLookup = std::getenv("DEMO_CHAT_DISABLE_DISCOVERY_LOOKUP") != nullptr;
+    std::thread discoveryThread;
+    if (!opts.bootstrap && !disableDiscoveryLookup) {
+        discoveryThread = std::thread([&] {
+            while (!gStop.load(std::memory_order_acquire)) {
+                auto lookup = node.discoLookup(serviceId, serviceData);
+                if (lookup.success && lookup.value.is_array()) {
+                    for (const auto& rec : lookup.value) {
+                        std::string peerId = rec.value("peerId", "");
+                        auto addrs = jsonStringArray(rec["addrs"]);
+                        connectPeerOnce(node, peerId, addrs, connectedPeers, outputMutex);
+                    }
+                }
+
+                for (int i = 0; i < 30 && !gStop.load(std::memory_order_acquire); ++i) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 }
             }
-
-            for (int i = 0; i < 30 && !gStop.load(std::memory_order_acquire); ++i) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-        }
-    });
+        });
+    }
 
     {
         std::lock_guard<std::mutex> lock(outputMutex);
