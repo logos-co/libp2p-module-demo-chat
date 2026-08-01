@@ -17,7 +17,11 @@
         let
           baseShell = logos-libp2p-module.devShells.${system}.default;
         in {
-          default = baseShell;
+          default = baseShell.overrideAttrs (old: {
+            shellHook = (old.shellHook or "") + ''
+              export LOGOS_LIBP2P_MODULE_DIR=${logos-libp2p-module}
+            '';
+          });
         });
     };
 }

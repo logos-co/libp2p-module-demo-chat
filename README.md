@@ -12,7 +12,7 @@ runs with the same id reuse the same peer identity.
 Run from the workspace root:
 
 ```bash
-nix --extra-experimental-features 'nix-command flakes' develop ../logos-libp2p-module --command bash -lc 'cmake -B build -S . && cmake --build build -j'
+nix --extra-experimental-features 'nix-command flakes' develop . --command bash -lc 'cmake -B build -S . && cmake --build build -j'
 ```
 
 ## Run Demo Chat
@@ -45,7 +45,7 @@ same bootstrap node and topic receive the message.
 If `--nick` is omitted, Demo Chat uses `demo-<id>`.
 
 ```bash
-nix --extra-experimental-features 'nix-command flakes' develop ../logos-libp2p-module --command bash -lc './build/demo-chat --id alice --nick Alice --bootstrap-peer "$(cat .demo-chat/state/bootstrap/bootstrap-peer.txt)"'
+nix --extra-experimental-features 'nix-command flakes' develop . --command bash -lc './build/demo-chat --id alice --nick Alice --bootstrap-peer "$(cat .demo-chat/state/bootstrap/bootstrap-peer.txt)"'
 ```
 
 ## Options

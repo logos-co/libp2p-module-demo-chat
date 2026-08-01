@@ -163,7 +163,7 @@ std::string loadOrCreatePrivateKey(const std::filesystem::path& stateDir) {
     }
 
     Libp2pModuleImpl keygen;
-    auto res = keygen.newPrivateKey(KeyScheme::Ed25519);
+    auto res = keygen.newPrivateKey("ed25519");
     if (!res.success || !res.value.is_string()) {
         throw std::runtime_error("failed to generate private key: " + res.error);
     }
