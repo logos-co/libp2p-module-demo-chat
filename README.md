@@ -1,4 +1,5 @@
 # Demo Chat via logos-libp2p-module
+[![CI](https://github.com/logos-co/libp2p-module-demo-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/logos-co/libp2p-module-demo-chat/actions/workflows/ci.yml)
 
 This repository is a standalone terminal project that demonstrates
 `logos-libp2p-module` with one global GossipSub room named **Demo Chat**.
